@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CESS | Rules Generator</title>
+    <!-- Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #020b1c;
+            --accent-cyan: #00c2ff;
+            --accent-yellow: #ffcc00;
+            --text-white: #ffffff;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border-glow: 0 0 15px rgba(0, 194, 255, 0.4);
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #000;
+            color: var(--text-white);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 40px 0;
+        }
+
+        /* --- UI CONTROLS (NOT EXPORTED) --- */
+        .admin-panel {
+            position: fixed;
+            top: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 15px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 1px solid var(--accent-cyan);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        .btn-add { background: var(--text-white); color: #000; }
+        .btn-download { background: var(--accent-cyan); color: #000; }
+        .btn:hover { transform: scale(1.05); filter: brightness(1.2); }
+
+        /* --- EXPORT AREA (THE CANVAS) --- */
+        #canvas-frame {
+            width: 800px;
+            background-color: var(--bg-color);
+            position: relative;
+            padding: 80px 60px;
+            box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Neon Border Style from Reference */
+        .neon-border {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            right: 30px;
+            bottom: 30px;
+            border: 2px solid var(--accent-cyan);
+            border-radius: 40px;
+            pointer-events: none;
+            opacity: 0.6;
+            box-shadow: inset var(--border-glow), var(--border-glow);
+        }
+
+        .neon-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-yellow);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-yellow);
+        }
+
+        /* Content Styling */
+        .header-section {
+            text-align: center;
+            margin-bottom: 50px;
+            z-index: 2;
+        }
+
+        .comp-title {
+            font-weight: 900;
+            font-size: 64px;
+            line-height: 1;
+            margin: 0;
+            text-transform: uppercase;
+            color: #fff;
+        }
+
+        .yellow-accent {
+            color: var(--accent-yellow);
+            display: block;
+        }
+
+        .pre-round-header {
+            margin-top: 20px;
+            font-size: 24px;
+            letter-spacing: 5px;
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+
+        /* Prize Box */
+        .prize-container {
+            background: linear-gradient(90deg, rgba(0,194,255,0.1), transparent);
+            border-left: 4px solid var(--accent-cyan);
+            padding: 15px 40px;
+            margin-bottom: 50px;
+            z-index: 2;
+        }
+
+        .prize-content {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--text-white);
+        }
+
+        /* Rules List */
+        .rules-stack {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 2;
+        }
+
+        .rule-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px 35px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            transition: 0.3s;
+        }
+
+        .rule-card:hover { border-color: var(--accent-cyan); }
+
+        .rule-num {
+            font-size: 40px;
+            font-weight: 900;
+            color: rgba(255,255,255,0.05);
+            margin-right: 30px;
+            font-style: italic;
+            min-width: 60px;
+        }
+
+        .rule-body { flex: 1; }
+
+        .rule-label {
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .rule-desc {
+            font-size: 18px;
+            color: #cbd5e1;
+            font-weight: 500;
+        }
+
+        /* Footer Info */
+        .footer-area {
+            margin-top: auto;
+            padding-top: 60px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 2;
+        }
+
+        /* Editing States */
+        [contenteditable="true"] {
+            outline: none;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+
+        [contenteditable="true"]:focus {
+            background: rgba(255,255,255,0.1);
+            padding: 0 5px;
+        }
+
+        .delete-rule {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            font-size: 12px;
+            z-index: 10;
+        }
+
+        .rule-card:hover .delete-rule { display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="admin-panel">
+        <button class="btn btn-add" onclick="addRuleRow()">+ Add New Rule</button>
+        <button class="btn btn-download" onclick="exportGraphic()">Download PNG</button>
+    </div>
+
+    <!-- MAIN CANVAS -->
+    <div id="canvas-frame">
+        <!-- Decoration Borders -->
+        <div class="neon-border"></div>
+        <div class="neon-dot" style="top:26px; left:26px;"></div>
+        <div class="neon-dot" style="top:26px; right:26px;"></div>
+
+        <div class="header-section">
+            <h1 class="comp-title">
+                CESS-MEME<br>
+                <span class="yellow-accent" contenteditable="true">COMPETITION</span>
+            </h1>
+            <div class="pre-round-header" contenteditable="true">RULES FOR PRE-ROUND</div>
+        </div>
+
+        <div class="prize-container">
+            <div class="prize-content" contenteditable="true">🏆 PRIZE POOL: $1,000 USDT</div>
+        </div>
+
+        <div class="rules-stack" id="rules-list">
+            <!-- Rule 1 -->
+            <div class="rule-card">
+                <div class="rule-num" contenteditable="true">01</div>
+                <div class="rule-body">
+                    <span class="rule-label" contenteditable="true">Topic</span>
+                    <span class="rule-desc" contenteditable="true">Create original memes focusing on CESS DePIN & Data Storage.</span>
+                </div>
+                <button class="delete-rule" data-html2canvas-ignore onclick="this.parentElement.remove()">✕</button>
+            </div>
+
+            <!-- Rule 2 -->
+            <div class="rule-card">
+                <div class="rule-num" contenteditable="true">02</div>
+                <div class="rule-body">
+                    <span class="rule-label" contenteditable="true">Submission</span>
+                    <span class="rule-desc" contenteditable="true">Upload to X (Twitter) and tag @CESS_Storage with #CESS #DePIN.</span>
+                </div>
+                <button class="delete-rule" data-html2canvas-ignore onclick="this.parentElement.remove()">✕</button>
+            </div>
+        </div>
+
+        <div class="footer-area">
+            <div contenteditable="true">🌐 WWW.CESS.NETWORK</div>
+            <div contenteditable="true">#CESS #NEPAL #WEB3</div>
+        </div>
+    </div>
+
+    <script>
+        // Function to add a new rule row dynamically
+        function addRuleRow() {
+            const list = document.getElementById('rules-list');
+            const newIndex = list.children.length + 1;
+            const card = document.createElement('div');
+            card.className = 'rule-card';
+            card.innerHTML = `
+                <div class="rule-num" contenteditable="true">${newIndex < 10 ? '0' + newIndex : newIndex}</div>
+                <div class="rule-body">
+                    <span class="rule-label" contenteditable="true">New Category</span>
+                    <span class="rule-desc" contenteditable="true">Enter the specific rule details here. Click to edit.</span>
+                </div>
+                <button class="delete-rule" data-html2canvas-ignore onclick="this.parentElement.remove()">✕</button>
+            `;
+            list.appendChild(card);
+        }
+
+        // Function to export the div to PNG
+        function exportGraphic() {
+            const btn = document.querySelector('.btn-download');
+            btn.innerText = "Processing...";
+            
+            html2canvas(document.querySelector("#canvas-frame"), {
+                scale: 2, // High resolution
+                backgroundColor: "#020b1c",
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement("a");
+                link.download = "CESS-Meme-Rules.png";
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                btn.innerText = "Download PNG";
+            });
+        }
+    </script>
+</body>
+</html>
